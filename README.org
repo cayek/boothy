@@ -16,3 +16,6 @@
 
 *Pi Camera*
 - [[https://www.raspberrypi.org/documentation/configuration/camera.md][Camera configuration]]
+* Photo layout 
+2 pictures + the logo. 
+

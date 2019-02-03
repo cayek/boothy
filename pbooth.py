@@ -21,13 +21,13 @@ from PIL import Image, ImageDraw, ImageFont
 IMG1             = "1.jpg"
 IMG2             = "2.jpg"
 IMG3             = "3.jpg"
-CurrentWorkingDir= "/usr/local/src/boothy"
+CurrentWorkingDir= "/home/pi/boothy/"
 IMG4             = "4logo.png"
 logDir           = "logs"
 archiveDir       = "photos"
-SCREEN_WIDTH     = 640
+SCREEN_WIDTH     = 800
 SCREEN_HEIGHT    = 480
-IMAGE_WIDTH      = 640
+IMAGE_WIDTH      = 800
 IMAGE_HEIGHT     = 480
 BUTTON_PIN       = 26
 LED_PIN          = 19 #connected to external 12v.
@@ -105,12 +105,12 @@ def addPreviewOverlay(xcoord,ycoord,fontSize,overlayText):
         # If you have a new version of picamera, then please change the
         # first parameter to:  img.tobytes()
         #
-        overlay_renderer = camera.add_overlay(img.tostring(),
+        overlay_renderer = camera.add_overlay(img.tobytes(),
                                               layer=3,
                                               size=img.size,
                                               alpha=128);
     else:
-        overlay_renderer.update(img.tostring())
+        overlay_renderer.update(img.tobytes())
 
 #run a full series
 def play():
@@ -120,7 +120,7 @@ def play():
     print "Created filename: "+fileName
 
     #turn on flash
-    GPIO.output(LED_PIN,GPIO.HIGH)
+    # GPIO.output(LED_PIN,GPIO.HIGH)
 
     countdownFrom(PHOTO_DELAY)
     captureImage(IMG1)
@@ -135,12 +135,12 @@ def play():
     time.sleep(1)
 
     #turn off flash
-    GPIO.output(LED_PIN,GPIO.LOW)
+    # GPIO.output(LED_PIN,GPIO.LOW)
 
     convertMergeImages(fileName)
     time.sleep(1)
 
-    printPic(fileName)
+    # printPic(fileName)
     time.sleep(15)
 
     archiveImage(fileName)
@@ -206,15 +206,17 @@ with picamera.PiCamera() as camera:
     try:
         initLogger(logDir)
         initCamera(camera)
-        GPIO.output(LED_PIN,GPIO.LOW)
+        # GPIO.output(LED_PIN,GPIO.LOW)
         logging.info("Starting preview")
         camera.start_preview()
         addPreviewOverlay(20,200,55,"Press red button to begin!")
 
         logging.info("Starting application loop")
+        input_state = True
         while True:
-            input_state = GPIO.input(BUTTON_PIN)
+            # input_state = GPIO.input(BUTTON_PIN)
             if input_state == True :
+                input_state = False
                 if buttonEvent == False :
                     buttonEvent = True
                     onButtonPress()
