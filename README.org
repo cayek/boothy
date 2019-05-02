@@ -10,12 +10,15 @@
 - [[https://www.hackster.io/sabat54i/wedding-photo-booth-with-raspberry-pi-1cea3a][Wedding Photo Booth with Raspberry Pi]]: with a screen and pi camera.
 - [[https://www.wikihow.com/Create-a-Photo-Booth-with-the-Raspberry-Pi][How to Create a Photo Booth with the Raspberry Pi]]: with the [[https://github.com/zoroloco/boothy][boothy]] code.
 - [[https://makezine.com/projects/raspberry-pi-photo-booth/][Create a Raspberry Pi Photo Booth for Your Next Party]]
-* Sources 
+* Setups
 *Touch screen*
 - [[https://www.instructables.com/id/Raspberry-Pi-Touchscreen-Setup/][Raspberry Pi Touchscreen Setup]]
 
 *Pi Camera*
 - [[https://www.raspberrypi.org/documentation/configuration/camera.md][Camera configuration]]
+
+*Button*
+- 
 * Photo layout 
 2 pictures + the logo. 
 
