@@ -21,24 +21,24 @@ from PIL import Image, ImageDraw, ImageFont
 IMG1             = "1.jpg"
 IMG2             = "2.jpg"
 IMG3             = "3.jpg"
+IMG4             = "4.jpg"
 CurrentWorkingDir= "/home/pi/boothy/"
-IMG4             = "4logo.png"
 logDir           = "logs"
 archiveDir       = "photos"
-SCREEN_WIDTH     = 800
+SCREEN_WIDTH     = 640
 SCREEN_HEIGHT    = 480
-IMAGE_WIDTH      = 800
+IMAGE_WIDTH      = 640
 IMAGE_HEIGHT     = 480
 BUTTON_PIN       = 26
 LED_PIN          = 19 #connected to external 12v.
-PHOTO_DELAY      = 8
+PHOTO_DELAY      = 2
 overlay_renderer = None
 buttonEvent      = False
 
 #setup GPIOs
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(LED_PIN, GPIO.OUT)
+# GPIO.setup(LED_PIN, GPIO.OUT)
 
 #print the image
 def printPic(fileName):
@@ -55,8 +55,10 @@ def convertMergeImages(fileName):
     addPreviewOverlay(150,200,55,"merging images...")
     #now merge all the images
     subprocess.call(["montage",
-                     IMG1,IMG2,IMG3,IMG4,
-                     "-geometry", "+2+2",
+                     IMG1,IMG1,IMG2,IMG2,
+                     IMG3,IMG3,IMG4,IMG4,
+                     "-tile", "2x4",
+                     "-geometry", "+4+4",
                      fileName])
     logging.info("Images have been merged.")
 
@@ -110,14 +112,19 @@ def addPreviewOverlay(xcoord,ycoord,fontSize,overlayText):
                                               size=img.size,
                                               alpha=128);
     else:
-        overlay_renderer.update(img.tobytes())
+        camera.remove_overlay(overlay_renderer)
+        overlay_renderer = camera.add_overlay(img.tobytes(),
+                                              layer=3,
+                                              size=img.size,
+                                              alpha=128);
+        # overlay_renderer.update(img.tobytes()) # generate error
 
 #run a full series
 def play():
-    print "Starting play sequence"
+    logging.info("Starting play sequence")
 
     fileName = time.strftime("%Y%m%d-%H%M%S")+".jpg"
-    print "Created filename: "+fileName
+    logging.info("Created filename: "+fileName)
 
     #turn on flash
     # GPIO.output(LED_PIN,GPIO.HIGH)
@@ -134,6 +141,11 @@ def play():
     captureImage(IMG3)
     time.sleep(1)
 
+    countdownFrom(PHOTO_DELAY)
+    captureImage(IMG4)
+    time.sleep(1)
+
+
     #turn off flash
     # GPIO.output(LED_PIN,GPIO.LOW)
 
@@ -144,7 +156,7 @@ def play():
     time.sleep(15)
 
     archiveImage(fileName)
-    deleteImages(fileName)
+    # deleteImages(fileName) # useless
 
 def initCamera(camera):
     logging.info("Initializing camera.")
@@ -165,7 +177,7 @@ def initCamera(camera):
     camera.color_effects         = None
     camera.rotation              = 0
     camera.hflip                 = False
-    camera.vflip                 = True
+    camera.vflip                 = False
     camera.crop                  = (0.0, 0.0, 1.0, 1.0)
 
 def initLogger(output_dir):
@@ -209,14 +221,14 @@ with picamera.PiCamera() as camera:
         # GPIO.output(LED_PIN,GPIO.LOW)
         logging.info("Starting preview")
         camera.start_preview()
+
         addPreviewOverlay(20,200,55,"Press red button to begin!")
 
         logging.info("Starting application loop")
-        input_state = True
         while True:
-            # input_state = GPIO.input(BUTTON_PIN)
-            if input_state == True :
-                input_state = False
+            input_state = GPIO.input(BUTTON_PIN)
+            if input_state == False :
+                input_state = 1
                 if buttonEvent == False :
                     buttonEvent = True
                     onButtonPress()
