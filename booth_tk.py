@@ -53,17 +53,17 @@ class Booth():
         self.init_tk(wd, screen_width, screen_height)
 
         # init camera
-        # self.init_camera(camera_width, camera_heigh)
+        self.init_camera(camera_width, camera_heigh)
 
         # init gpio
-        # self.init_gpio(green_button_pin, red_button_pin)
+        self.init_gpio(green_button_pin, red_button_pin)
 
         # montage command
         imgs = [["{}.jpg".format(i), "{}.jpg".format(i)] for i in range(1, 5)]
         imgs = list(itertools.chain.from_iterable(imgs))
         self.res_cmd = (["montage"]
                         + imgs
-                        + ["-tile 2x4 -geometry +4+4"])
+                        + ["-tile", "2x4", "-geometry", "+4+4"])
         imgs = ["{}.jpg".format(i) for i in range(1, 5)]
         self.show_cmd = (["montage"]
                          + imgs
@@ -209,7 +209,6 @@ class Booth():
                                                             layer=3,
                                                             size=img.size,
                                                             alpha=128)
-            self.remove_overlay = True
         else:
             if self.remove_overlay:
                 self.camera.remove_overlay(self.overlay_renderer)
@@ -218,6 +217,7 @@ class Booth():
                                                             size=img.size,
                                                             alpha=128)
             # self.overlay_renderer.update(img.tobytes()) # generate error
+        self.remove_overlay = True
 
     def countdown_from(self, countdown):
         s = countdown
@@ -251,7 +251,9 @@ class Booth():
 
         self.add_preview_overlay(150, 200, 55, "Un petit instant :D...")
         # now merge all the images
-        subprocess.call(self.res_cmd + [res_path])
+        res_cmd = self.res_cmd + [res_path]
+        self.logger.info(res_cmd)
+        subprocess.call(res_cmd)
         showprint_path = "{}/showprint.jpg".format(self.wd)
         subprocess.call(self.show_cmd + [showprint_path])
         self.logger.info("Images have been merged.")
@@ -273,7 +275,7 @@ class Booth():
         self.stop_camera_preview()
         self.show_toprint()
         # green or red ?
-        button = self.user_input("both")
+        button = self.user_input()
         if button == "green":
             self.print_pic()
         else:
