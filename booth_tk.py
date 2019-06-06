@@ -1,4 +1,5 @@
 import tkinter as tk
+import itertools
 from PIL import ImageTk, Image, ImageDraw, ImageFont
 import logging
 import time
@@ -35,7 +36,7 @@ def init_logger(output_dir="./logs/"):
 class Booth():
     def __init__(self,
                  logger,
-                 wd="/home/pi/boothy",
+                 wd=".",
                  screen_width=800,
                  screen_height=480,
                  camera_width=640,
@@ -52,14 +53,22 @@ class Booth():
         self.init_tk(wd, screen_width, screen_height)
 
         # init camera
-        self.init_camera(camera_width, camera_heigh)
+        # self.init_camera(camera_width, camera_heigh)
 
         # init gpio
-        self.init_gpio(green_button_pin, red_button_pin)
+        # self.init_gpio(green_button_pin, red_button_pin)
 
         # montage command
-        self.res_cmd = "montage 1.jpg 1.jpg 2.jpg 2.jpg 3.jpg 3.jpg 4.jpg 4.jpg -tile 2x4 -geometry +4+4"
-        self.show_cmd = "montage 1.jpg 2.jpg 3.jpg 4.jpg -tile 2x2 -geometry +2+2"
+        imgs = [["{}.jpg".format(i), "{}.jpg".format(i)] for i in range(1, 5)]
+        imgs = list(itertools.chain.from_iterable(imgs))
+        self.res_cmd = (["montage"]
+                        + imgs
+                        + ["-tile 2x4 -geometry +4+4"])
+        imgs = ["{}.jpg".format(i) for i in range(1, 5)]
+        self.show_cmd = (["montage"]
+                         + imgs
+                         + ["-tile", "2x2"]
+                         + ["-geometry", "+2+2"])
 
     def init_tk(self, wd, screen_width, screen_height):
         # parameters
@@ -73,8 +82,8 @@ class Booth():
         self.root.bind("<Escape>", lambda e: e.widget.quit())
         # add images
         self.imgs = {}
-        self.imgs["home"] = Image.open("{}/boothy0.png".format(wd))
-        self.imgs["smile"] = Image.open("{}/boothy1.png".format(wd))
+        self.imgs["home"] = Image.open("{}/booth0.png".format(wd))
+        self.imgs["smile"] = Image.open("{}/booth1.png".format(wd))
         # create canvas
         self.canvas = tk.Canvas(self.root,
                                 width=self.w,
@@ -128,18 +137,33 @@ class Booth():
         self.logger.info("show home")
 
     def show_toprint(self):
-        # make the montage
-        showprint_path = "./showprint.jpg"
-        subprocess.call(self.res_cmd + showprint_path)
         # load image
+        showprint_path = "{}/showprint.jpg".format(self.wd)
         showprint_img = Image.open(showprint_path)
+        # resize
+        img_w, img_h = showprint_img.size
+        if img_w > self.w or img_h > self.h:
+            ratio = min(self.w/img_w, self.h/img_h)
+            img_w = int(img_w*ratio)
+            img_h = int(img_h*ratio)
+            showprint_img = showprint_img.resize((img_w, img_h),
+                                                 Image.ANTIALIAS)
         # get a drawing context
         d = ImageDraw.Draw(showprint_img)
         # draw text, half opacity
-        fnt = ImageFont.truetype('Pillow/Tests/fonts/FreeMono.ttf', 40)
-        d.text((10, 10), "Pour imprimer, appuier sur le boutton vert.",
+        fnt = ImageFont.truetype('Pillow/Tests/fonts/FreeMono.ttf', 30)
+        d.text((50, 200), "BOUTTON VERT : imprimer",
                font=fnt,
-               fill=(255, 255, 255, 128))
+               fill=(0, 204, 0, 128))
+        d.text((50, 250), "BOUTTON ROUGE : acceuil",
+               font=fnt,
+               fill=(255, 51, 51, 128))
+        # show to screen
+        self.current_img = ImageTk.PhotoImage(showprint_img)
+        self.canvas.itemconfig(self.imagesprite,
+                               image=self.current_img)
+        self.root.update()
+        self.logger.info("show toprint")
 
     def show_smile(self):
         self.current_img = ImageTk.PhotoImage(self.imgs["smile"])
@@ -202,17 +226,21 @@ class Booth():
             time.sleep(1)
             s = s - 1
 
+    def stop_camera_preview(self):
+        self.camera.stop_preview()
+        if self.remove_overlay:
+            self.camera.remove_overlay(self.overlay_renderer)
+            self.remove_overlay = False
+
     def capture_image(self, image_name):
         self.logger.info("Capture image {}".format(image_name))
-        self.camera.stop_preview()
-        self.camera.remove_overlay(self.overlay_renderer)
-        self.remove_overlay = False
+        self.stop_camera_preview()
         self.camera.capture(image_name, resize=(self.c_w, self.c_h))
         self.camera.start_preview()
 
     def play(self):
         res_name = time.strftime("%Y%m%d-%H%M%S")+".jpg"
-        res_path = "./photos/{}".format(res_name)
+        res_path = "{}/photos/{}".format(self.wd, res_name)
         self.show_smile()
         # capture 4 images
         for i in range(1, 5):
@@ -221,9 +249,11 @@ class Booth():
             self.capture_image(img)
             time.sleep(1)
 
-        self.add_preview_overlay(150, 200, 55, "merging images...")
+        self.add_preview_overlay(150, 200, 55, "Un petit instant :D...")
         # now merge all the images
-        subprocess.call("cd {}; ".format(self.wd) + self.res_cmd + ' ' + res_path)
+        subprocess.call(self.res_cmd + [res_path])
+        showprint_path = "{}/showprint.jpg".format(self.wd)
+        subprocess.call(self.show_cmd + [showprint_path])
         self.logger.info("Images have been merged.")
 
     def run(self):
@@ -240,7 +270,7 @@ class Booth():
         while button != "green":
             button = self.user_input()
         self.play()
-        self.camera.stop_preview()
+        self.stop_camera_preview()
         self.show_toprint()
         # green or red ?
         button = self.user_input("both")
