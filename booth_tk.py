@@ -41,7 +41,7 @@ class Booth():
                  screen_height=480,
                  camera_width=640,
                  camera_heigh=480,
-                 countdown=1,
+                 countdown=3,
                  green_button_pin=26,
                  red_button_pin=16):
         self.countdown = countdown
@@ -83,7 +83,26 @@ class Booth():
         # add images
         self.imgs = {}
         self.imgs["home"] = Image.open("{}/booth0.png".format(wd))
+        d = ImageDraw.Draw(self.imgs["home"])
+        fnt = ImageFont.truetype('Pillow/Tests/fonts/FreeMonoBold.ttf', 37)
+        d.text((80, 340), "Appuyez sur le bouton VERT\n pour commencer !",
+               font=fnt,
+               fill=(0, 128, 0))
         self.imgs["smile"] = Image.open("{}/booth1.png".format(wd))
+        self.imgs["end"] = Image.open("{}/end.png".format(wd))
+        d = ImageDraw.Draw(self.imgs["end"])
+        d.text((40, 15), "Les photos sont disponibles sur \n    https://photo.caye.fr ;)",
+               font=fnt,
+               fill=(220,20,60,255))
+        d.text((120, 390), "Bouton VERT pour continuer.",
+               font=fnt,
+               fill=(0, 128, 0))
+        self.imgs["print"] = Image.open("{}/print.png".format(wd))
+        d = ImageDraw.Draw(self.imgs["print"])
+        d.text((10, 380), "Les photos sont en court d'impression.....",
+               font=fnt,
+               fill=(220,20,60,255))
+
         # create canvas
         self.canvas = tk.Canvas(self.root,
                                 width=self.w,
@@ -138,8 +157,7 @@ class Booth():
 
     def show_toprint(self):
         # load image
-        showprint_path = "{}/showprint.jpg".format(self.wd)
-        showprint_img = Image.open(showprint_path)
+        showprint_img = Image.open(self.showprint_path)
         # resize
         img_w, img_h = showprint_img.size
         if img_w > self.w or img_h > self.h:
@@ -151,13 +169,13 @@ class Booth():
         # get a drawing context
         d = ImageDraw.Draw(showprint_img)
         # draw text, half opacity
-        fnt = ImageFont.truetype('Pillow/Tests/fonts/FreeMono.ttf', 30)
-        d.text((50, 200), "BOUTTON VERT : imprimer",
+        fnt = ImageFont.truetype('Pillow/Tests/fonts/FreeMonoBold.ttf', 37)
+        d.text((50, 150), "BOUTTON VERT : imprimer",
                font=fnt,
-               fill=(0, 204, 0, 128))
-        d.text((50, 250), "BOUTTON ROUGE : acceuil",
+               fill=(0, 128, 0))
+        d.text((50, 300), "BOUTTON ROUGE : acceuil",
                font=fnt,
-               fill=(255, 51, 51, 128))
+               fill=(255, 51, 51))
         # show to screen
         self.current_img = ImageTk.PhotoImage(showprint_img)
         self.canvas.itemconfig(self.imagesprite,
@@ -165,15 +183,30 @@ class Booth():
         self.root.update()
         self.logger.info("show toprint")
 
-    def show_smile(self):
-        self.current_img = ImageTk.PhotoImage(self.imgs["smile"])
+    def show_smile(self, write=None, x=100, y=380, size=80):
+        smile_img = self.imgs["smile"].copy()
+        if not write is None:
+            d = ImageDraw.Draw(smile_img)
+            # draw text, half opacity
+            fnt = ImageFont.truetype('Pillow/Tests/fonts/FreeMonoBold.ttf', size)
+            d.text((x, y), write,
+                   font=fnt, fill=(220,20,60,200))
+        self.current_img = ImageTk.PhotoImage(smile_img)
         self.canvas.itemconfig(self.imagesprite,
                                image=self.current_img)
         self.root.update()
         self.logger.info("show smile")
 
     def print_pic(self):
-        self.logger.info("PRINT-TODO")
+        self.logger.info("PRINT")
+        self.current_img = ImageTk.PhotoImage(self.imgs["print"])
+        self.canvas.itemconfig(self.imagesprite,
+                               image=self.current_img)
+        self.root.update()
+        self.logger.info("show end")
+        # to be sure that the montage is over :D
+        self.to_print_p.wait()
+        time.sleep(5)
 
     def user_input(self):
         green_event = False
@@ -197,13 +230,13 @@ class Booth():
         return output
 
     def add_preview_overlay(self, xcoord, ycoord,
-                            fontSize, overlayText):
-        img = Image.new("RGB", (self.c_w, self.c_h))
+                            fontSize, overlayText, color=(32, 178, 170, 210)):
+        img = Image.new("RGBA", (self.c_w, self.c_h), (255, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         draw.font = ImageFont.truetype(
-            "/usr/share/fonts/truetype/freefont/FreeSerif.ttf",
+            'Pillow/Tests/fonts/FreeMonoBold.ttf',
             fontSize)
-        draw.text((xcoord, ycoord), overlayText, (255, 20, 147))
+        draw.text((xcoord, ycoord), overlayText, color)
         if self.overlay_renderer is None:
             self.overlay_renderer = self.camera.add_overlay(img.tobytes(),
                                                             layer=3,
@@ -222,7 +255,7 @@ class Booth():
     def countdown_from(self, countdown):
         s = countdown
         while s > 0:
-            self.add_preview_overlay(300, 100, 240, str(s))
+            self.add_preview_overlay(250, 100, 240, str(s))
             time.sleep(1)
             s = s - 1
 
@@ -238,25 +271,45 @@ class Booth():
         self.camera.capture(image_name, resize=(self.c_w, self.c_h))
         self.camera.start_preview()
 
+    def sync_withcloud(self):
+        self.logger.info("Sync with piwigo cloud")
+        p = subprocess.Popen(["sh",
+                              '{}/sync_piwigo.sh'.format(self.wd),
+                              self.photo_path],
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
     def play(self):
         res_name = time.strftime("%Y%m%d-%H%M%S")+".jpg"
-        res_path = "{}/photos/{}".format(self.wd, res_name)
+        self.photo_path = "{}/photos/{}".format(self.wd, res_name)
+        self.toprint_path = "{}/toprint/{}".format(self.wd, res_name)
         self.show_smile()
         # capture 4 images
         for i in range(1, 5):
             self.countdown_from(self.countdown)
             img = "{}.jpg".format(i)
+            self.show_smile('photo {} / 4 !'.format(i))
             self.capture_image(img)
             time.sleep(1)
 
-        self.add_preview_overlay(150, 200, 55, "Un petit instant :D...")
+        self.camera.stop_preview()
+        self.show_smile("Un petit instant :D...", 40, 380, 50)
         # now merge all the images
-        res_cmd = self.res_cmd + [res_path]
-        self.logger.info(res_cmd)
-        subprocess.call(res_cmd)
-        showprint_path = "{}/showprint.jpg".format(self.wd)
-        subprocess.call(self.show_cmd + [showprint_path])
+        res_cmd = self.res_cmd + [self.toprint_path]
+        self.to_print_p = subprocess.Popen(res_cmd,
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.STDOUT)
+        self.showprint_path = self.photo_path
+        subprocess.call(self.show_cmd + [self.showprint_path])
+        # sync with cloud
+        self.sync_withcloud()
         self.logger.info("Images have been merged.")
+
+    def show_end(self):
+        self.current_img = ImageTk.PhotoImage(self.imgs["end"])
+        self.canvas.itemconfig(self.imagesprite,
+                               image=self.current_img)
+        self.root.update()
+        self.logger.info("show end")
 
     def run(self):
         self.logger.info("new cycle")
@@ -267,6 +320,7 @@ class Booth():
             button = self.user_input()
         self.logger.info("Start camera preview")
         self.camera.start_preview()
+        self.add_preview_overlay(30, 10, 38, "Appuyez sur le bouton vert \n pour prendre 4 photos !", (34,139,34, 255))
         # wait for user to press green button
         button = self.user_input()
         while button != "green":
@@ -280,6 +334,11 @@ class Booth():
             self.print_pic()
         else:
             self.logger.info("do not print the picture")
+        self.show_end()
+        # wait for user to press green button
+        button = self.user_input()
+        while button != "green":
+            button = self.user_input()
 
     def teardown(self):
         self.logger.info("close everything")
