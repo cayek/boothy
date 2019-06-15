@@ -1,3 +1,4 @@
+import cups
 import tkinter as tk
 import itertools
 from PIL import ImageTk, Image, ImageDraw, ImageFont
@@ -203,9 +204,19 @@ class Booth():
         self.canvas.itemconfig(self.imagesprite,
                                image=self.current_img)
         self.root.update()
-        self.logger.info("show end")
+        self.logger.info("show print in progress")
         # to be sure that the montage is over :D
         self.to_print_p.wait()
+        # send print
+        conn = cups.Connection()
+        printers = conn.getPrinters()
+        default_printer = "Canon_SELPHY_CP1300"
+        if (default_printer in printers.keys()):
+            cups.setUser('pi')
+            conn.printFile(default_printer, self.toprint_path,
+                           "boothy", {'fit-to-page':'True'})
+        else:
+            self.logger.info("Printer not found ! ")
         time.sleep(5)
 
     def user_input(self):
@@ -312,33 +323,35 @@ class Booth():
         self.logger.info("show end")
 
     def run(self):
-        self.logger.info("new cycle")
-        self.show_home()
-        # wait for user to press green button
-        button = self.user_input()
-        while button != "green":
+        gogogo = True
+        while gogogo:
+            self.logger.info("new cycle")
+            self.show_home()
+            # wait for user to press green button
             button = self.user_input()
-        self.logger.info("Start camera preview")
-        self.camera.start_preview()
-        self.add_preview_overlay(30, 10, 38, "Appuyez sur le bouton vert \n pour prendre 4 photos !", (34,139,34, 255))
-        # wait for user to press green button
-        button = self.user_input()
-        while button != "green":
+            while button != "green":
+                button = self.user_input()
+            self.logger.info("Start camera preview")
+            self.camera.start_preview()
+            self.add_preview_overlay(30, 10, 38, "Appuyez sur le bouton vert \n pour prendre 4 photos !", (34,139,34, 255))
+            # wait for user to press green button
             button = self.user_input()
-        self.play()
-        self.stop_camera_preview()
-        self.show_toprint()
-        # green or red ?
-        button = self.user_input()
-        if button == "green":
-            self.print_pic()
-        else:
-            self.logger.info("do not print the picture")
-        self.show_end()
-        # wait for user to press green button
-        button = self.user_input()
-        while button != "green":
+            while button != "green":
+                button = self.user_input()
+            self.play()
+            self.stop_camera_preview()
+            self.show_toprint()
+            # green or red ?
             button = self.user_input()
+            if button == "green":
+                self.print_pic()
+            else:
+                self.logger.info("do not print the picture")
+            self.show_end()
+            # wait for user to press green button
+            button = self.user_input()
+            while button != "green":
+                button = self.user_input()
 
     def teardown(self):
         self.logger.info("close everything")
@@ -353,7 +366,6 @@ if __name__ == "__main__":
         booth.run()
     except BaseException:
         logging.error("Unhandled exception : " , exc_info=True)
-        booth.teardown()
     finally:
         logging.info("quitting...")
         booth.teardown()
