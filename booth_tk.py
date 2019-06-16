@@ -64,7 +64,7 @@ class Booth():
         imgs = list(itertools.chain.from_iterable(imgs))
         self.res_cmd = (["montage"]
                         + imgs
-                        + ["-tile", "2x4", "-geometry", "+4+4"])
+                        + ["-tile", "2x4", "-geometry", "+8+4"])
         imgs = ["{}.jpg".format(i) for i in range(1, 5)]
         self.show_cmd = (["montage"]
                          + imgs
@@ -100,7 +100,7 @@ class Booth():
                fill=(0, 128, 0))
         self.imgs["print"] = Image.open("{}/print.png".format(wd))
         d = ImageDraw.Draw(self.imgs["print"])
-        d.text((10, 380), "Les photos sont en court d'impression.....",
+        d.text((50, 380), "Les photos sont en cours \n   d'impression.....",
                font=fnt,
                fill=(220,20,60,255))
 
